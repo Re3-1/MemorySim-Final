@@ -33,7 +33,9 @@ export function LToP() {
 
   const handleTranslate = () => {
     const logical = parseInt(logicalAddress, 10);
-    if (isNaN(logical)) return;
+    if (isNaN(logical)){ 
+      alert("Enter Number")
+      return};
 
     const pageNumber = Math.floor(logical / pageSize);
     const offset = logical % pageSize;

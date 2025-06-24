@@ -18,10 +18,14 @@ function App() {
     <Routes>
       <Route path='/contMem' element={<ContMem></ContMem>} ></Route>
       <Route path='/' element={<SelectMem></SelectMem>}></Route>
-
       <Route path='/contNonMem' element={<ContNonMem></ContNonMem>}></Route>
+
+
+      
       <Route path='/lToP' element={<LToP></LToP>}></Route>
         <Route path='/pageReplace' element={<PageReplacementSimulator></PageReplacementSimulator>}></Route> 
+
+
         <Route path='/fixedPar' element={<FixedPartitionMemorySim></FixedPartitionMemorySim>}></Route>
         <Route path='/dynPar' element={<DynamicPartitionMemorySim></DynamicPartitionMemorySim>}></Route>
     </Routes>

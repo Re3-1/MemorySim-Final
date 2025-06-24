@@ -13,7 +13,7 @@ export function FixedPartitionMemorySim() {
     const parsedProcesses = processes.split(/\s+/).map(Number);
     const numPartitions = Math.floor(totalMemory / partitionSize);
     let newPartitions = Array(numPartitions).fill(null);
-    let internalFrag = 0;
+ 
     let externalFrag = 0;
 
     parsedProcesses.forEach((process, i) => {
@@ -25,7 +25,7 @@ export function FixedPartitionMemorySim() {
             size: process,
             internal: partitionSize - process,
           };
-          internalFrag += (partitionSize - process);
+        
         } else {
           newPartitions[freeIndex] = {
             processId: `P${i + 1}`,

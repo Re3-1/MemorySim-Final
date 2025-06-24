@@ -42,7 +42,7 @@ export function DynamicPartitionMemorySim() {
       });
     }
 
-    let totalUnallocated = unallocatedProcesses.reduce((sum, p) => sum + p, 0);
+  
     let externalFrag = 0;
     if (remainingMemory >= Math.min(...unallocatedProcesses, remainingMemory + 1)) {
       externalFrag = remainingMemory;

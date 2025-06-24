@@ -1,83 +1,71 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useNavigate } from 'react-router-dom';
 
 export default function PageReplacementSimulator() {
-  
-
-  const [referenceString, setReferenceString] = useState('');
-  const [numFrames, setNumFrames] = useState(3);
-  const [algorithm, setAlgorithm] = useState('FIFO');
+  const [refStr, setRefStr] = useState('');
+  const [frameCount, setFrameCount] = useState(3);
+  const [algo, setAlgo] = useState('FIFO');
   const [steps, setSteps] = useState([]);
-  const [comparisonData, setComparisonData] = useState([]);
-  const navigate=useNavigate();
+  const [chartData, setChartData] = useState([]);
 
-  const simulateAlgorithm = (refs, algo) => {
-    let memory = [];
-    let history = [];
+  function runSim(refs, algo) {
+    let mem = [];
+    let hist = [];
     let index = 0;
-    const seen = new Map();
+    let track = {};
     let faults = 0;
 
-    refs.forEach((page, stepIndex) => {
-      let status = 'Hit';
-      if (!memory.includes(page)) {
-        status = 'Fault';
+    for (let i = 0; i < refs.length; i++) {
+      let p = refs[i];
+      let stat = 'Hit';
+      if (!mem.includes(p)) {
+        stat = 'Fault';
         faults++;
-
-        if (memory.length < numFrames) {
-          memory.push(page);
+        if (mem.length < frameCount) {
+          mem.push(p);
         } else {
           if (algo === 'FIFO') {
-            memory[index % numFrames] = page;
+            mem[index % frameCount] = p;
             index++;
           } else if (algo === 'LRU') {
-            let lruPage = [...seen.entries()].sort((a, b) => a[1] - b[1])[0][0];
-            const lruIndex = memory.indexOf(lruPage);
-            memory[lruIndex] = page;
+            let arr = Object.entries(track).sort((a, b) => a[1] - b[1]);
+            let lru = arr[0][0];
+            let ix = mem.indexOf(Number(lru));
+            mem[ix] = p;
           } else if (algo === 'Optimal') {
-            let future = refs.slice(stepIndex + 1);
-            let indexes = memory.map(p => future.indexOf(p));
-            let replaceIndex = indexes.includes(-1)
-              ? indexes.indexOf(-1)
-              : indexes.indexOf(Math.max(...indexes));
-            memory[replaceIndex] = page;
+            let next = refs.slice(i + 1);
+            let pos = mem.map(m => next.indexOf(m));
+            let hasMinusOne = pos.includes(-1);
+            let maxValue = Math.max(...pos);
+            let maxIndex = pos.indexOf(maxValue);
+            let minusOneIndex = pos.indexOf(-1);
+
+            let rIndex = hasMinusOne ? minusOneIndex : maxIndex;
+            mem[rIndex] = p;
           }
         }
       }
-      seen.set(page, stepIndex);
-      history.push({ memory: [...memory], page, status });
+      track[p] = i;
+      hist.push({ mem: [...mem], p, stat });
+    }
+
+    return { hist, faults };
+  }
+
+  const simulate = () => {
+    if (!refStr.trim()) return;
+    let refs = refStr.split(/\s+/).map(x => parseInt(x));
+    let res = runSim(refs, algo);
+    setSteps(res.hist);
+
+    let compare = ['FIFO', 'LRU', 'Optimal'].map(a => {
+      let r = runSim(refs, a);
+      return { algorithm: a, pageFaults: r.faults };
     });
 
-    return { history, faults };
+    setChartData(compare);
   };
-
-const simulate = () => {
-  if (!referenceString.trim()) return;
-
-  const refs = referenceString.split(/\s+/).map(Number);
-
-  // Reset previous steps & comparison data
-  setSteps([]);
-  setComparisonData([]);
-
-  // Simulate selected algorithm
-  const selectedResult = simulateAlgorithm(refs, algorithm);
-  setSteps(selectedResult.history);
-
-  // Simulate comparison for all algorithms
-  const comparison = ['FIFO', 'LRU', 'Optimal'].map((algo) => {
-    const res = simulateAlgorithm(refs, algo);
-    return { algorithm: algo, pageFaults: res.faults };
-  });
-  setComparisonData(comparison);
-
-  // Force re-render of simulation result components
-  setSimulationKey(prev => prev + 1);
-};
-
-
 
   return (
     <motion.div
@@ -86,23 +74,17 @@ const simulate = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
     >
-      <div className='flex justify-between'>
       <h2 className="text-2xl font-semibold mb-4">Page Replacement Simulator</h2>
-      <button onClick={()=>{navigate("/contMem")}} class="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-green-400 to-blue-600 group-hover:from-green-400 group-hover:to-blue-600 hover:text-white dark:text-white focus:ring-4 focus:outline-none focus:ring-green-200 dark:focus:ring-green-800">
-<span class="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white dark:bg-gray-900 rounded-md group-hover:bg-transparent group-hover:dark:bg-transparent">
-Back
-</span>
-</button>
-      </div>
+
       <div className="space-y-4">
         <label className="block">
           Page Reference String:
           <input
             type="text"
+            value={refStr}
+            onChange={(e) => setRefStr(e.target.value)}
             className="w-full p-2 mt-1 border rounded bg-gray-900 text-white"
             placeholder="e.g. 7 0 1 2 0 3 0 4"
-            value={referenceString}
-            onChange={(e) => setReferenceString(e.target.value)}
           />
         </label>
 
@@ -110,19 +92,19 @@ Back
           Number of Frames:
           <input
             type="number"
-            className="w-full p-2 mt-1 border rounded bg-gray-900 text-white"
-            value={numFrames}
+            value={frameCount}
+            onChange={(e) => setFrameCount(Number(e.target.value))}
             min={1}
-            onChange={(e) => setNumFrames(Number(e.target.value))}
+            className="w-full p-2 mt-1 border rounded bg-gray-900 text-white"
           />
         </label>
 
         <label className="block">
           Algorithm:
           <select
+            value={algo}
+            onChange={(e) => setAlgo(e.target.value)}
             className="w-full p-2 mt-1 border rounded bg-gray-900 text-white"
-            value={algorithm}
-            onChange={(e) => setAlgorithm(e.target.value)}
           >
             <option value="FIFO">FIFO</option>
             <option value="LRU">LRU</option>
@@ -131,10 +113,10 @@ Back
         </label>
 
         <motion.button
-          className="relative inline-flex items-center justify-center p-0.5 overflow-hidden text-sm font-medium rounded-lg group bg-gradient-to-br from-cyan-500 to-blue-500 group-hover:from-cyan-500 group-hover:to-blue-500 focus:ring-4 focus:outline-none focus:ring-cyan-200"
           onClick={simulate}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
+          className="relative inline-flex items-center justify-center p-0.5 overflow-hidden text-sm font-medium rounded-lg group bg-gradient-to-br from-cyan-500 to-blue-500 group-hover:from-cyan-500 group-hover:to-blue-500 focus:ring-4 focus:outline-none focus:ring-cyan-200"
         >
           <span className="relative px-5 py-2.5 transition-all ease-in duration-75 bg-black rounded-md group-hover:bg-transparent">
             Simulate
@@ -146,33 +128,33 @@ Back
         <div className="mt-8 space-y-4">
           <h3 className="font-semibold text-lg">Simulation Steps:</h3>
           <div className="space-y-2">
-            {steps.map((step, i) => (
+            {steps.map((s, idx) => (
               <motion.div
-                key={i}
+                key={idx}
                 className={`p-2 rounded border text-sm font-mono transition-all duration-300 ${
-                  step.status === 'Fault'
+                  s.stat === 'Fault'
                     ? 'bg-red-600 border-red-500'
                     : 'bg-green-600 border-green-500'
                 }`}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: i * 0.05 }}
+                transition={{ duration: 0.3, delay: idx * 0.05 }}
               >
-                <strong>Step {i + 1}:</strong> Page <strong>{step.page}</strong> →{' '}
-                <span className="font-semibold">{step.status}</span>
+                <strong>Step {idx + 1}:</strong> Page <strong>{s.p}</strong> →{' '}
+                <span className="font-semibold">{s.stat}</span>
                 <br />
-                Frames: <span className="tracking-wide">{step.memory.join(' | ')}</span>
+                Frames: <span className="tracking-wide">{s.mem.join(' | ')}</span>
               </motion.div>
             ))}
           </div>
         </div>
       )}
 
-      {comparisonData.length > 0 && (
+      {chartData.length > 0 && (
         <div className="mt-8">
           <h3 className="font-semibold text-lg mb-2">Page Fault Comparison:</h3>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={comparisonData}>
+            <BarChart data={chartData}>
               <XAxis dataKey="algorithm" stroke="#ccc" />
               <YAxis allowDecimals={false} stroke="#ccc" />
               <Tooltip contentStyle={{ backgroundColor: '#222', borderColor: '#444', color: '#fff' }} />
